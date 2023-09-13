@@ -12,6 +12,7 @@ public class TouchInput : MonoBehaviour
     [SerializeField] GameObject m_VirtualRoot;
     [SerializeField] float m_Sensitivity = 0.5f;
     [SerializeField] UnityEvent m_EventToExecuteOnStriker;
+    [SerializeField] CoinToPlaceObject m_CointoPlaceObject;
     Vector3 dirPre;
     Vector3 dirPost;
     Vector3 currentMousePosition;
@@ -28,6 +29,8 @@ public class TouchInput : MonoBehaviour
     void Update()
     {
         if (!handleInput)
+            return;
+        if (m_CointoPlaceObject.Value != null)
             return;
         if(Input.GetMouseButtonDown(0))
         {
