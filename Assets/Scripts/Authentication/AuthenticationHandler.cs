@@ -34,6 +34,7 @@ public class AuthenticationHandler : MonoBehaviour
         if (!AuthenticationService.Instance.SessionTokenExists)
         {
             // session token doesnt exist any more
+            PerformAnonumousSignin();
             return;
         }
         // perfect place to perform a anonymous signin (Background signin)
@@ -50,7 +51,9 @@ public class AuthenticationHandler : MonoBehaviour
     {
         if(string.IsNullOrEmpty(AuthenticationService.Instance.PlayerName))
         {
-            m_AccountSetupObject.SetActive(true);
+            //m_AccountSetupObject.SetActive(true);
+            // instead of setup lets just give a name AnonymousPerson + playerID or random number.
+            UpdatePlayerName("Anonumous " + AuthenticationService.Instance.PlayerId.Substring(0, 5));
         }
     }
 

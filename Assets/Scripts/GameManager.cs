@@ -9,10 +9,10 @@ using UnityEngine.Events;
 
 public class GameManager : MonoBehaviour
 {
-    public float StrikeForceMultiplier = 10f;
+    public float StrikeForceMultiplier = 1f;
     public LineRenderer ShotRenderer;
 
-    public int MaxSimulatedFrames = 600;
+    public int MaxSimulatedFrames = 60;
     [Space]
     List<GameObject> carromCoins;
     List<Vector3> preShotPos = new List<Vector3>();                   //save pre shot positions of coins
@@ -123,6 +123,7 @@ public class GameManager : MonoBehaviour
             if (ghostGameObject.tag == Constants.Tag_Striker)
             {
                 ghostStriker = ghostGameObject;
+                ghostStriker.GetComponent<StrikerController>().ToggleIndicatorObject(false);
                 Destroy(ghostStriker.GetComponent<StrikerController>());
             }
             ghostGameObject.GetComponent<SpriteRenderer>().enabled = false;
@@ -228,7 +229,8 @@ public class GameManager : MonoBehaviour
             ghostStriker.GetComponent<CircleCollider2D>().isTrigger = !GameController.Instance.ValidStrikerPlacement;
             ghostStriker.transform.position = striker.transform.position;
             ghostStriker.GetComponent<Rigidbody2D>().velocity = Vector3.zero;
-            ghostStriker.GetComponent<Rigidbody2D>().AddForce((strikerForceDirection.normalized) * StrikeForceMultiplier,ForceMode2D.Impulse);
+            float magnitude = Vector2.Distance(hitPoint, dragStartPos);
+            ghostStriker.GetComponent<Rigidbody2D>().AddForce((strikerForceDirection.normalized) * StrikeForceMultiplier * magnitude,ForceMode2D.Impulse);
             ShotRenderer.positionCount = MaxSimulatedFrames;
             for (int i = 0; i < MaxSimulatedFrames; i++)
             {
@@ -252,8 +254,8 @@ public class GameManager : MonoBehaviour
 
                 ShotRenderer.positionCount = 0;
 
-                
-                strikerTransfrom.GetComponent<Rigidbody2D>().AddForce((strikerForceDirection.normalized) * StrikeForceMultiplier, ForceMode2D.Impulse);
+                striker.GetComponent<StrikerController>().ToggleIndicatorObject(false);
+                strikerTransfrom.GetComponent<Rigidbody2D>().AddForce((strikerForceDirection.normalized) * StrikeForceMultiplier * magnitude, ForceMode2D.Impulse);
                 StartCoroutine("checkforShotEnd");
                 ShotRenderer.enabled = false;
                 for (int i = 0; i < carromCoins.Count; i++)
@@ -419,6 +421,7 @@ public class GameManager : MonoBehaviour
 
     void carromManPlaced()
     {
+        GameController.Instance.SetValidState(true);
         m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Plays" : PersistantPlayerData.Instance.Player2.PlayerName + " Plays";
     }
     void toggleFaction()

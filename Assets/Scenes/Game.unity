@@ -401,9 +401,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2c0c4a2c35859834a8207478b8c27c9e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  StrikeForceMultiplier: 25
+  StrikeForceMultiplier: 1
   ShotRenderer: {fileID: 434634732}
-  MaxSimulatedFrames: 600
+  MaxSimulatedFrames: 180
   StaticPhysicsObjects:
   - {fileID: 283842137}
   - {fileID: 1174863553}
@@ -2297,7 +2297,7 @@ LineRenderer:
   m_SortingOrder: 0
   m_Positions:
   - {x: 0, y: 0, z: 0}
-  - {x: 0, y: 1, z: 0}
+  - {x: 0, y: 0, z: 0}
   m_Parameters:
     serializedVersion: 3
     widthMultiplier: 0.1
@@ -7371,7 +7371,7 @@ Transform:
   m_GameObject: {fileID: 1741820144}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 1}
   m_LocalScale: {x: 30, y: 30, z: 30}
   m_ConstrainProportionsScale: 1
   m_Children: []
