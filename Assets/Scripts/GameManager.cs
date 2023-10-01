@@ -6,6 +6,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
 using UnityEngine.Events;
+using Unity.Netcode.Components;
+using Unity.Netcode;
 
 public class GameManager : MonoBehaviour
 {
@@ -51,14 +53,14 @@ public class GameManager : MonoBehaviour
     List<Vector3> ghostsPreSimPos = new List<Vector3>();
     Vector2 strikerForceDirection;
 
-
+    bool panelsSwitched = false;
     bool isShotPlaying;
     bool opponentPlacesCoin;
     PostShotRuleEvaluator ruleEvaluator;
     List<GameObject> puckedCoins = new List<GameObject>();
     List<GameObject> puckedGhosts = new List<GameObject>();
     CoinType currentFaction = CoinType.Faction1;
-
+    NetworkMessenger networkMessenger;
 
 
     // Game juice
@@ -69,6 +71,7 @@ public class GameManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        networkMessenger = GetComponent<NetworkMessenger>();
         GameController.Instance.RegisterGameManager(this);
         Application.targetFrameRate = 60;
         striker = GameObject.FindGameObjectWithTag(Constants.Tag_Striker);
@@ -103,6 +106,9 @@ public class GameManager : MonoBehaviour
             try
             {
                 go.GetComponent<SpriteRenderer>().enabled = false;
+                go.GetComponent<ClientNetworkTransform>().enabled = false;
+                go.GetComponent<NetworkRigidbody>().enabled = false;
+                go.GetComponent<NetworkObject>().enabled = false;
             }
             catch (Exception e)
             {
@@ -120,6 +126,7 @@ public class GameManager : MonoBehaviour
 
             var ghostGameObject = Instantiate(coinGO, coinGO.transform.position, coinGO.transform.rotation);
             ghostGameObject.GetComponent<Coin>().enabled = false;
+            //Destroy(ghostGameObject.GetComponent<NetworkTransform>());
             if (ghostGameObject.tag == Constants.Tag_Striker)
             {
                 ghostStriker = ghostGameObject;
@@ -130,6 +137,7 @@ public class GameManager : MonoBehaviour
             SceneManager.MoveGameObjectToScene(ghostGameObject, simulationScene);
             ghostCoins.Add(ghostGameObject);
             ghostsPreSimPos.Add(ghostGameObject.transform.position);
+
         }
         ruleEvaluator = GetComponent<PostShotRuleEvaluator>();
         postRuleExecution = GetComponent<PostRuleExecution>();
@@ -159,6 +167,7 @@ public class GameManager : MonoBehaviour
         factionHolder2.gameObject.SetActive(currentFaction == CoinType.Faction2);
         m_TouchInput.HandleInput(true);
         striker.GetComponent<StrikerPlacementHelper>().ConvertToTrigger();
+        Debug.Log("Setting place striker to true");
         strikerPlacement.ToggleStrikerPlacement(true);
     }
 
@@ -198,7 +207,7 @@ public class GameManager : MonoBehaviour
         //Get viewport point to calculate for camera delta
         var clickViewport = Camera.main.ScreenToViewportPoint(Input.mousePosition);
         RaycastHit2D hit2D = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
-        
+
 
         if (Input.GetMouseButton(0) && !touchIsDragging)
         {
@@ -230,7 +239,7 @@ public class GameManager : MonoBehaviour
             ghostStriker.transform.position = striker.transform.position;
             ghostStriker.GetComponent<Rigidbody2D>().velocity = Vector3.zero;
             float magnitude = Vector2.Distance(hitPoint, dragStartPos);
-            ghostStriker.GetComponent<Rigidbody2D>().AddForce((strikerForceDirection.normalized) * StrikeForceMultiplier * magnitude,ForceMode2D.Impulse);
+            ghostStriker.GetComponent<Rigidbody2D>().AddForce((strikerForceDirection.normalized) * StrikeForceMultiplier * magnitude, ForceMode2D.Impulse);
             ShotRenderer.positionCount = MaxSimulatedFrames;
             for (int i = 0; i < MaxSimulatedFrames; i++)
             {
@@ -262,7 +271,7 @@ public class GameManager : MonoBehaviour
                 {
                     preShotPos.Add(carromCoins[i].transform.position);
                 }
-                m_PowSystem.transform.position = striker.transform.position + new Vector3(0,0,-5);
+                m_PowSystem.transform.position = striker.transform.position + new Vector3(0, 0, -5);
                 m_PowSystem.Play();
                 m_LockRaycast = true;
             }
@@ -401,24 +410,34 @@ public class GameManager : MonoBehaviour
         //    else currentFaction = CoinType.Faction1;
         //    postRuleExecution.ExecutePostScoreEventNoScore();
         //}
-        if(m_CoinToPlace.Value == null)
-        {
-            m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Plays" : PersistantPlayerData.Instance.Player2.PlayerName + " Plays";
-        }
-        if(m_CoinToPlace.Value != null && m_CoinToPlace.Value.GetComponent<Coin>().CoinType != CoinType.Striker)
-        {
-            m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Places the carromman" : PersistantPlayerData.Instance.Player2.PlayerName + " Places the carromman";
-        }
-        scalePlayerPanels();
+        // send an RPC here communicationg with the server and let changes propagate to the clients.
+
         //puckedCoins.Clear();
         //puckedGhosts.Clear();
 
 
         //ruleEvaluator.SetFaction(currentFaction);
-
+        // Inform server that there is a coin that we need to place 
 
     }
 
+    //public void PerformSwitchFaction(CoinType targetFaction)
+    //{
+    //    switchFactions();
+    //}
+
+    void placeCoinToPlace()
+    {
+        if (m_CoinToPlace.Value == null)
+        {
+            m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Plays" : PersistantPlayerData.Instance.Player2.PlayerName + " Plays";
+        }
+        if (m_CoinToPlace.Value != null && m_CoinToPlace.Value.GetComponent<Coin>().CoinType != CoinType.Striker)
+        {
+            m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Places the carromman" : PersistantPlayerData.Instance.Player2.PlayerName + " Places the carromman";
+        }
+
+    }
     void carromManPlaced()
     {
         GameController.Instance.SetValidState(true);
@@ -430,20 +449,35 @@ public class GameManager : MonoBehaviour
         {
             case CoinType.Faction1:
                 currentFaction = CoinType.Faction2;
+                SendTurnChangeOnServer(currentFaction);
                 break;
             case CoinType.Faction2:
                 currentFaction = CoinType.Faction1;
+                SendTurnChangeOnServer(currentFaction);
                 break;
         }
-        ruleEvaluator.SetFaction(currentFaction);
+    }
+
+    public void SetCurrentFaction(CoinType currentFaction)
+    {
+        Debug.Log("Setting current faction");
+        this.currentFaction = currentFaction;
+        scalePlayerPanels();
+        placeCoinToPlace();
+    }
+
+
+    void SendTurnChangeOnServer(CoinType targetFaction)
+    {
+        networkMessenger.SendTurnChangeToserver(targetFaction);
     }
     void revertCoinPositions()
     {
-        foreach(GameObject coin in puckedCoins)
+        foreach (GameObject coin in puckedCoins)
         {
             coin.SetActive(true);
         }
-        foreach(GameObject ghost in puckedGhosts)
+        foreach (GameObject ghost in puckedGhosts)
         {
             ghost.SetActive(true);
         }

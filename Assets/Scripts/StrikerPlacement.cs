@@ -8,7 +8,7 @@ public class StrikerPlacement : MonoBehaviour
     [SerializeField] Vector3 m_OffsetFromCenter;
     [SerializeField] GameObject m_StrikerObject;
     [SerializeField] LayerMask m_DetectionMask;
-    bool placeStriker = true;
+    [SerializeField] bool placeStriker = true;
     Camera mainCamera;
     // Start is called before the first frame update
     void Start()
