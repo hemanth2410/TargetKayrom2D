@@ -195,6 +195,7 @@ public class LobbyOrchestrator : NetworkBehaviour
 
     public void OnReadyClicked()
     {
+       
         SetReadyServerRpc(NetworkManager.Singleton.LocalClientId);
         if (IsHost) return;
         PlayerStruct player = new PlayerStruct

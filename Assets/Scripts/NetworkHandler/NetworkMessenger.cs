@@ -5,14 +5,18 @@ using Unity.Services.Lobbies.Models;
 using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
+using System.Linq;
+using System.Text;
+using DG.Tweening;
 
 public class NetworkMessenger : NetworkBehaviour
 {
     Dictionary<ulong, NetworkClient> connectedClients = new();
     GameManager gameManager;
     [SerializeField] CoinType requestedFaction;
-    [SerializeField] NetworkObject board;
-
+    [SerializeField] NetworkObject[] ObjectsToChangeOwnership;
+    [SerializeField] bool IsOwnedByLocalClient;
+    [SerializeField] bool IsOwnedByServer;
     // Start is called before the first frame update
     void Start()
     {
@@ -24,6 +28,67 @@ public class NetworkMessenger : NetworkBehaviour
             Debug.Log("Client Key : " +  client.Key + " Connected client value : " +client.Value.ClientId);
         }
     }
+
+    public void GameOverEvent(CoinType winningFaction)
+    {
+        processWinEventServerRpc(winningFaction);
+    }
+    [ServerRpc]
+    void processWinEventServerRpc(CoinType winningFaction)
+    {
+        processScoreOnClinent(winningFaction);
+    }
+
+    void processScoreOnClinent(CoinType winningFaction)
+    {
+        for (int i = 0; i < NetworkManager.Singleton.ConnectedClients.Count; i++)
+        {
+            setWinnginClientRpc(winningFaction);
+        }
+    }
+
+    [ClientRpc]
+    void setWinnginClientRpc(CoinType winningFaction)
+    {
+        if (PersistantPlayerData.Instance.Player1.PlayerFaction == winningFaction)
+        {
+            PersistantPlayerData.Instance.Player1.setPlayerState(true);
+        }
+        if (PersistantPlayerData.Instance.Player2.PlayerFaction == winningFaction)
+        {
+            PersistantPlayerData.Instance.Player2.setPlayerState(true);
+        }
+        if(IsServer)
+        {
+            NetworkManager.Singleton.SceneManager.LoadScene("WinScene", UnityEngine.SceneManagement.LoadSceneMode.Single);
+        }
+    }
+
+    public void RegisterScoreUpdatedEvent(CoinType faction, int value)
+    {
+        ProcessScoresServerRpc(faction, value);
+    }
+
+    [ServerRpc(RequireOwnership =false)]
+    void ProcessScoresServerRpc(CoinType faction, int value)
+    {
+        PropagateScoreChangesToClients(faction, value);
+    }
+
+    void PropagateScoreChangesToClients(CoinType faction, int value)
+    {
+        for (int i = 0; i < NetworkManager.Singleton.ConnectedClients.Count; i++)
+        {
+            UpdateScoreOnClientRpc(faction, value);
+        }
+    }
+    [ClientRpc]
+    void UpdateScoreOnClientRpc(CoinType faction, int value)
+    {
+        GameController.Instance.InvokeScoreEvent(faction, value);
+    }
+
+
     public void SendTurnChangeToserver(CoinType targetFaction)
     {
         ulong localClientId = 0;
@@ -50,12 +115,12 @@ public class NetworkMessenger : NetworkBehaviour
     }
 
 
-
     [ClientRpc]
     void updateTurnOnClientRpc(CoinType targetFaction)
     {
         // Request Game manager to switch the Turn
         gameManager.SetCurrentFaction(targetFaction);
+        //striker.GetComponent<ClientNetworkTransform>().SetserverAuthority(targetFaction == CoinType.Faction1 ? true : false);
     }
 
     [ServerRpc(RequireOwnership = false)]
@@ -68,12 +133,33 @@ public class NetworkMessenger : NetworkBehaviour
         Debug.Log(clientId + " is the sender");
         if(targetFaction == CoinType.Faction2)
         {
-            board.ChangeOwnership(1);
+            changeOwnership(false);
         }
         if(targetFaction == CoinType.Faction1)
         {
-            board.RemoveOwnership();
+            changeOwnership(true);
         }
         propagateChangesToClients(requestedFaction);
     }
+
+    void changeOwnership(bool value)
+    {
+        for (int i = 0; i < ObjectsToChangeOwnership.Length; i++)
+        {
+            if(value)
+            {
+                ObjectsToChangeOwnership[i].RemoveOwnership();
+            }
+            else
+            {
+                ObjectsToChangeOwnership[i].ChangeOwnership(1);
+            }
+        }
+    }
+
+
+
+
 }
+
+

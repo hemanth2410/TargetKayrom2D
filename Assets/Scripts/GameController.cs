@@ -45,6 +45,8 @@ public class GameController : MonoBehaviour
         ResetPhysicsCoins?.Invoke();
     }
 
+   
+
     internal void RegisterPostShotEvaluator(PostShotRuleEvaluator postShotRuleEvaluator)
     {
         _evaluator = postShotRuleEvaluator;

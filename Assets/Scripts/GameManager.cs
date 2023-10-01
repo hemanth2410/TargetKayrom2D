@@ -61,7 +61,7 @@ public class GameManager : MonoBehaviour
     List<GameObject> puckedGhosts = new List<GameObject>();
     CoinType currentFaction = CoinType.Faction1;
     NetworkMessenger networkMessenger;
-
+    bool strikerReset;
 
     // Game juice
     PostRuleExecution postRuleExecution;
@@ -106,9 +106,6 @@ public class GameManager : MonoBehaviour
             try
             {
                 go.GetComponent<SpriteRenderer>().enabled = false;
-                go.GetComponent<ClientNetworkTransform>().enabled = false;
-                go.GetComponent<NetworkRigidbody>().enabled = false;
-                go.GetComponent<NetworkObject>().enabled = false;
             }
             catch (Exception e)
             {
@@ -120,25 +117,30 @@ public class GameManager : MonoBehaviour
 
         //Create ghost objects for physics simulation, add rigidbodies to collection
         for (int i = 0; i < carromCoins.Count; i++)
-        {
-            var coinGO = carromCoins[i];
-            coinRigs.Add(coinGO.GetComponent<Rigidbody2D>());
-
-            var ghostGameObject = Instantiate(coinGO, coinGO.transform.position, coinGO.transform.rotation);
-            ghostGameObject.GetComponent<Coin>().enabled = false;
-            //Destroy(ghostGameObject.GetComponent<NetworkTransform>());
-            if (ghostGameObject.tag == Constants.Tag_Striker)
             {
-                ghostStriker = ghostGameObject;
-                ghostStriker.GetComponent<StrikerController>().ToggleIndicatorObject(false);
-                Destroy(ghostStriker.GetComponent<StrikerController>());
-            }
-            ghostGameObject.GetComponent<SpriteRenderer>().enabled = false;
-            SceneManager.MoveGameObjectToScene(ghostGameObject, simulationScene);
-            ghostCoins.Add(ghostGameObject);
-            ghostsPreSimPos.Add(ghostGameObject.transform.position);
+                var coinGO = carromCoins[i];
+                coinRigs.Add(coinGO.GetComponent<Rigidbody2D>());
 
-        }
+                var ghostGameObject = Instantiate(coinGO, coinGO.transform.position, coinGO.transform.rotation);
+                ghostGameObject.GetComponent<Coin>().enabled = false;
+                //Destroy(ghostGameObject.GetComponent<NetworkTransform>());
+                Destroy(ghostGameObject.GetComponent<NetworkRigidbody2D>());
+                Destroy(ghostGameObject.GetComponent<NetworkTransform>());
+                Destroy(ghostGameObject.GetComponent<NetworkObject>());
+                if (ghostGameObject.tag == Constants.Tag_Striker)
+                {
+                    ghostStriker = ghostGameObject;
+                    ghostStriker.GetComponent<StrikerController>().ToggleIndicatorObject(false);
+                    Destroy(ghostStriker.GetComponent<StrikerController>());
+                }
+                ghostGameObject.GetComponent<SpriteRenderer>().enabled = false;
+                SceneManager.MoveGameObjectToScene(ghostGameObject, simulationScene);
+                ghostCoins.Add(ghostGameObject);
+                ghostsPreSimPos.Add(ghostGameObject.transform.position);
+
+            }
+
+
         ruleEvaluator = GetComponent<PostShotRuleEvaluator>();
         postRuleExecution = GetComponent<PostRuleExecution>();
         ruleEvaluator.SetFaction(CoinType.Faction1);
@@ -195,6 +197,16 @@ public class GameManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if(!strikerReset)
+        {
+            if (ghostStriker.GetComponent<Rigidbody2D>().isKinematic)
+            {
+                ghostStriker.GetComponent<Rigidbody2D>().isKinematic = false;
+                strikerReset = true;
+            }
+        }
+        
+
 
         if (m_LockRaycast)
             return;
@@ -228,7 +240,8 @@ public class GameManager : MonoBehaviour
             var hitPoint = hit2D.point;
             Debug.DrawLine(strikerTransfrom.position, hitPoint);
             strikerForceDirection = dragStartPos - hitPoint;
-            Debug.DrawLine(strikerTransfrom.position, strikerForceDirection.normalized, Color.green);
+            float magnitude = Vector2.Distance(hitPoint, dragStartPos);
+
             for (int i = 0; i < carromCoins.Count; i++)
             {
                 ghostCoins[i].transform.position = carromCoins[i].transform.position;
@@ -238,9 +251,9 @@ public class GameManager : MonoBehaviour
             ghostStriker.GetComponent<CircleCollider2D>().isTrigger = !GameController.Instance.ValidStrikerPlacement;
             ghostStriker.transform.position = striker.transform.position;
             ghostStriker.GetComponent<Rigidbody2D>().velocity = Vector3.zero;
-            float magnitude = Vector2.Distance(hitPoint, dragStartPos);
             ghostStriker.GetComponent<Rigidbody2D>().AddForce((strikerForceDirection.normalized) * StrikeForceMultiplier * magnitude, ForceMode2D.Impulse);
             ShotRenderer.positionCount = MaxSimulatedFrames;
+
             for (int i = 0; i < MaxSimulatedFrames; i++)
             {
                 physicsSimulationScene.Simulate(Time.fixedDeltaTime);
@@ -362,69 +375,14 @@ public class GameManager : MonoBehaviour
             // GameController.Instance.InvokeGameOverEvent();
             // do nothing, Rule Evaluator is handling this case
         }
+        //m_CoinToPlace.Value = eval.Item6;
+        // Update this on network immediately.
         m_CoinToPlace.Value = eval.Item6;
         puckedCoins.Clear();
         puckedGhosts.Clear();
-        ////Score and retain turn
-        //if (eval.Item1 == true && eval.Item2 == true)
-        //{
-        //    processScore();
-        //    preShotPos.Clear();
-        //    postRuleExecution.ExecutePostScoreEvent();
-        //    /////GameController.Instance.InvokeScoreEvent(currentFaction, 1);
-        //}
-        //Score and lose turn
-        //else if (eval.Item1 == true && eval.Item2 == false)
-        //{
-        //    processScore();
-        //    postRuleExecution.ExecutePostScoreEvent();
-        //    preShotPos.Clear();
-
-        //    if (currentFaction == CoinType.Faction1) currentFaction = CoinType.Faction2;
-        //    else currentFaction = CoinType.Faction1;
-
-        //}
-        ////Resert booard and lose turn
-        //else if (eval.Item1 == false && eval.Item2 == true)
-        //{
-        //    foreach (GameObject coin in puckedCoins)
-        //    {
-        //        coin.SetActive(true);
-        //    }
-        //    foreach (GameObject ghost in puckedGhosts)
-        //    {
-        //        ghost.SetActive(true);
-        //    }
-
-        //    revertBoard();
-
-        //    if (currentFaction == CoinType.Faction1) currentFaction = CoinType.Faction2;
-        //    else currentFaction = CoinType.Faction1;
-        //    postRuleExecution.ExecutePostScoreEventNoScore();
-
-        //}
-        ////Lose turn
-        //else if (eval.Item1 == false && eval.Item2 == false)
-        //{
-        //    if (currentFaction == CoinType.Faction1) currentFaction = CoinType.Faction2;
-        //    else currentFaction = CoinType.Faction1;
-        //    postRuleExecution.ExecutePostScoreEventNoScore();
-        //}
-        // send an RPC here communicationg with the server and let changes propagate to the clients.
-
-        //puckedCoins.Clear();
-        //puckedGhosts.Clear();
-
-
-        //ruleEvaluator.SetFaction(currentFaction);
-        // Inform server that there is a coin that we need to place 
+        
 
     }
-
-    //public void PerformSwitchFaction(CoinType targetFaction)
-    //{
-    //    switchFactions();
-    //}
 
     void placeCoinToPlace()
     {
@@ -437,6 +395,11 @@ public class GameManager : MonoBehaviour
             m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Places the carromman" : PersistantPlayerData.Instance.Player2.PlayerName + " Places the carromman";
         }
 
+    }
+
+    public void SetCoinToPlaceServer(GameObject value)
+    {
+        m_CoinToPlace.Value = value;
     }
     void carromManPlaced()
     {
@@ -466,6 +429,10 @@ public class GameManager : MonoBehaviour
         placeCoinToPlace();
     }
 
+    public void UpdateClientToPlace(GameObject value)
+    {
+        m_CoinToPlace.Value = value;
+    }
 
     void SendTurnChangeOnServer(CoinType targetFaction)
     {
@@ -501,7 +468,9 @@ public class GameManager : MonoBehaviour
         foreach (GameObject coin in puckedCoins)
         {
             var i = carromCoins.IndexOf(coin);
-            GameController.Instance.InvokeScoreEvent(coin.GetComponent<Coin>().CoinType, 1);
+            //GameController.Instance.InvokeScoreEvent(coin.GetComponent<Coin>().CoinType, 1);
+            // sendthe RPC to the server
+            networkMessenger.RegisterScoreUpdatedEvent(coin.GetComponent<Coin>().CoinType, 1);
 
             coinRigs.RemoveAt(i);
             carromCoins.Remove(coin);

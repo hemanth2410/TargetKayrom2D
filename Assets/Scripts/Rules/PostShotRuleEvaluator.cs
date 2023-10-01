@@ -180,21 +180,26 @@ public class PostShotRuleEvaluator : MonoBehaviour
                                     {
                                         score = true;
                                         // ... (previous code, no changes)
-                                        if (currentFaction == CoinType.Faction1)
-                                        {
-                                            PersistantPlayerData.Instance.Player1.setPlayerState(true);
-                                        }
-                                        else
-                                        {
-                                            PersistantPlayerData.Instance.Player2.setPlayerState(true);
-                                        }
-                                        GameController.Instance.InvokeGameOverEvent();
+                                        //if (currentFaction == CoinType.Faction1)
+                                        //{
+                                        //    //PersistantPlayerData.Instance.Player1.setPlayerState(true);
+                                        //    // Send to server and get a call back
+                                        //}
+                                        //else
+                                        //{
+                                        //    //PersistantPlayerData.Instance.Player2.setPlayerState(true);
+                                        //    // send to server and get a call back
+                                        //}
+                                        //GameController.Instance.InvokeGameOverEvent();
+                                        // use client RPC.
+                                        GetComponent<NetworkMessenger>().GameOverEvent(currentFaction);
                                     }
                                     else
                                     {
                                         score = false;
                                         queenReachedGoal = true;
                                         resetToPast = true; // Trigger reset when Queen reaches goal post and score is not maximum.
+                                        break;
                                     }
                                 }
                             }

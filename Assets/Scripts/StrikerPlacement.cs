@@ -23,6 +23,10 @@ public class StrikerPlacement : MonoBehaviour
         {
             mainCamera = Camera.main;
         }
+        if (m_StrikerObject == null)
+        {
+            m_StrikerObject = GameObject.FindGameObjectWithTag(Constants.Tag_Striker);
+        }
         if (coinToPlace.Value != null)
             return;
         if (placeStriker)

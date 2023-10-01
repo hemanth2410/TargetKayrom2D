@@ -9,7 +9,6 @@ public class TouchInput : MonoBehaviour
 {
     [SerializeField] LayerMask m_DetectionMask;
     [SerializeField] LayerMask m_StrikerDetectionMask;
-    [SerializeField] GameObject m_DebugObject;
     [SerializeField] GameObject m_VirtualRoot;
     [SerializeField] float m_Sensitivity = 0.5f;
     [SerializeField] UnityEvent m_EventToExecuteOnStriker;
