@@ -59,7 +59,7 @@ public class GameManager : MonoBehaviour
     PostShotRuleEvaluator ruleEvaluator;
     List<GameObject> puckedCoins = new List<GameObject>();
     List<GameObject> puckedGhosts = new List<GameObject>();
-    CoinType currentFaction = CoinType.Faction1;
+    [SerializeField] CoinType currentFaction = CoinType.Faction1;
     NetworkMessenger networkMessenger;
     bool strikerReset;
 
@@ -378,6 +378,7 @@ public class GameManager : MonoBehaviour
         //m_CoinToPlace.Value = eval.Item6;
         // Update this on network immediately.
         m_CoinToPlace.Value = eval.Item6;
+        placeCoinToPlace();
         puckedCoins.Clear();
         puckedGhosts.Clear();
         
@@ -386,25 +387,28 @@ public class GameManager : MonoBehaviour
 
     void placeCoinToPlace()
     {
-        if (m_CoinToPlace.Value == null)
-        {
-            m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Plays" : PersistantPlayerData.Instance.Player2.PlayerName + " Plays";
-        }
         if (m_CoinToPlace.Value != null && m_CoinToPlace.Value.GetComponent<Coin>().CoinType != CoinType.Striker)
         {
-            m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Places the carromman" : PersistantPlayerData.Instance.Player2.PlayerName + " Places the carromman";
+            // send this as an RPC message to the server informing that the opposit faction needs to place a carrom on the board, => This requires transfer of ownership and the message can be handled locally
+            string gameObjectName = m_CoinToPlace.Value.name;
+            networkMessenger.CoinToPlaceRpcMessage(currentFaction, gameObjectName);
         }
 
     }
 
-    public void SetCoinToPlaceServer(GameObject value)
+    public void SetCoinToPlaceMessage(CoinType incomingFaction, string gameobjectName)
     {
-        m_CoinToPlace.Value = value;
+        m_StatusText.text = incomingFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Places the carromman" : PersistantPlayerData.Instance.Player2.PlayerName + " Places the carromman";
+        // updating the coin to place value here would be the best thing to do.
+        m_CoinToPlace.Value = GameObject.Find(gameobjectName);
     }
     void carromManPlaced()
     {
         GameController.Instance.SetValidState(true);
-        m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Plays" : PersistantPlayerData.Instance.Player2.PlayerName + " Plays";
+        // Not Sure if we need an RPC method to set the faction, Because it sure does update on local Client.
+        // Yes its needed. It needs to update on Other client too.
+        networkMessenger.SendTurnChangeToserver(currentFaction);
+        //m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Plays" : PersistantPlayerData.Instance.Player2.PlayerName + " Plays";
     }
     void toggleFaction()
     {
@@ -423,10 +427,12 @@ public class GameManager : MonoBehaviour
 
     public void SetCurrentFaction(CoinType currentFaction)
     {
+        m_CoinToPlace.Value = null;
+        m_StatusText.text = currentFaction == PersistantPlayerData.Instance.Player1.PlayerFaction ? PersistantPlayerData.Instance.Player1.PlayerName + " Plays" : PersistantPlayerData.Instance.Player2.PlayerName + " Plays";
         Debug.Log("Setting current faction");
         this.currentFaction = currentFaction;
+        ruleEvaluator.SetFaction(currentFaction);
         scalePlayerPanels();
-        placeCoinToPlace();
     }
 
     public void UpdateClientToPlace(GameObject value)
@@ -465,23 +471,60 @@ public class GameManager : MonoBehaviour
 
     private void processScore()
     {
+        List<string> _ghostsToRemove = new List<string>();
+        List<string> _puckedCoinsToRemove = new List<string>();
         foreach (GameObject coin in puckedCoins)
         {
-            var i = carromCoins.IndexOf(coin);
+            //var i = carromCoins.IndexOf(coin);
             //GameController.Instance.InvokeScoreEvent(coin.GetComponent<Coin>().CoinType, 1);
             // sendthe RPC to the server
-            networkMessenger.RegisterScoreUpdatedEvent(coin.GetComponent<Coin>().CoinType, 1);
-
-            coinRigs.RemoveAt(i);
-            carromCoins.Remove(coin);
-            Destroy(coin);
+            networkMessenger.RegisterScoreUpdatedEvent(coin.GetComponent<Coin>().CoinType, 1, coin.gameObject.name);
+            // sync this with server.
+            //coinRigs.RemoveAt(i);
+            //carromCoins.Remove(coin);
+            //Destroy(coin);
+            _puckedCoinsToRemove.Add(coin.name);
         }
         foreach (GameObject ghost in puckedGhosts)
         {
-            ghostCoins.Remove(ghost);
-            Destroy(ghost);
+            //ghostCoins.Remove(ghost);
+            //Destroy(ghost);
+            // Sync this on both client and server
+            _ghostsToRemove.Add(ghost.name);
         }
+        // create an RPC to synchronize;
+    }
+    
+    public void DestroyPuckedCoins(List<string> puckedCoins)
+    {
+        foreach(GameObject coin in this.puckedCoins)
+        {
+            for (int i = 0; i < puckedCoins.Count; i++)
+            {
+                if (puckedCoins[i] == coin.name)
+                {
+                    coinRigs.Remove(coin.GetComponent<Rigidbody2D>());
+                    carromCoins.Remove(coin);
+                    Destroy(coin);
+                }
+                
+            }
+        }
+    }
 
+    public void DestroyGhostCoin(List<string> names)
+    {
+        foreach(GameObject ghost in puckedGhosts)
+        {
+            for (int i = 0; i < names.Count; i++)
+            {
+                if(name == ghost.name)
+                {
+                    ghostCoins.Remove(ghost);
+                    Destroy(ghost);
+                }
+            }
+        }
     }
 
     //Called from Goal post to indicate which faction coin has been pucked

@@ -8,6 +8,7 @@ using UnityEngine;
 using System.Linq;
 using System.Text;
 using DG.Tweening;
+using Unity.Collections;
 
 public class NetworkMessenger : NetworkBehaviour
 {
@@ -64,28 +65,32 @@ public class NetworkMessenger : NetworkBehaviour
         }
     }
 
-    public void RegisterScoreUpdatedEvent(CoinType faction, int value)
+    public void RegisterScoreUpdatedEvent(CoinType faction, int value, string gameobjectName)
     {
-        ProcessScoresServerRpc(faction, value);
+        FixedString128Bytes _name = gameobjectName;
+        ProcessScoresServerRpc(faction, value, _name);
     }
 
     [ServerRpc(RequireOwnership =false)]
-    void ProcessScoresServerRpc(CoinType faction, int value)
+    void ProcessScoresServerRpc(CoinType faction, int value, FixedString128Bytes gameobjectName)
     {
-        PropagateScoreChangesToClients(faction, value);
+        PropagateScoreChangesToClients(faction, value, gameobjectName);
     }
 
-    void PropagateScoreChangesToClients(CoinType faction, int value)
+    void PropagateScoreChangesToClients(CoinType faction, int value, FixedString128Bytes name)
     {
         for (int i = 0; i < NetworkManager.Singleton.ConnectedClients.Count; i++)
         {
-            UpdateScoreOnClientRpc(faction, value);
+            UpdateScoreOnClientRpc(faction, value, name);
         }
     }
     [ClientRpc]
-    void UpdateScoreOnClientRpc(CoinType faction, int value)
+    void UpdateScoreOnClientRpc(CoinType faction, int value, FixedString128Bytes name)
     {
         GameController.Instance.InvokeScoreEvent(faction, value);
+        var k = GameObject.Find(name.ToString());
+        Destroy(k.GetComponent<Coin>());
+        // Remove the ghost coin corresponding to this coin
     }
 
 
@@ -157,9 +162,83 @@ public class NetworkMessenger : NetworkBehaviour
         }
     }
 
+    public void CoinToPlaceRpcMessage(CoinType targetFaction, string gameobjectName)
+    {
+        FixedString128Bytes _name = gameobjectName;
+        RegisterContToPlaceOnServerRpc(targetFaction, _name);
+    }
 
+    [ServerRpc(RequireOwnership = false)]
+    void RegisterContToPlaceOnServerRpc(CoinType targetFaction, FixedString128Bytes targetGameObjectName)
+    {
+        // Trigger change of ownership
+        if (targetFaction == CoinType.Faction2)
+        {
+            changeOwnership(false);
+        }
+        if (targetFaction == CoinType.Faction1)
+        {
+            changeOwnership(true);
+        }
+        updateClientsOnCoinToPlace(targetFaction, targetGameObjectName);
+    }
 
+    void updateClientsOnCoinToPlace(CoinType targetFaction, FixedString128Bytes targetGameObjectName)
+    {
+        for (int i = 0; i < NetworkManager.Singleton.ConnectedClients.Count; i++)
+        {
+            updateCoinToPlaceOnClientRpc(targetFaction, targetGameObjectName);
+        }
+    }
 
+    [ClientRpc]
+    void updateCoinToPlaceOnClientRpc(CoinType targetFaction, FixedString128Bytes targetGameObjectName)
+    {
+        // Now Invoke a public method on GameManager and update the server requesting to switch message on the client side too.
+        gameManager.SetCoinToPlaceMessage(targetFaction, targetGameObjectName.ToString());
+    }
+
+    public void UpdateCoinsOnServer(List<string> ghostNames, List<string> puckedCoinNames)
+    {
+        FixedString128Bytes[] _ghostNames = new FixedString128Bytes[ghostNames.Count];
+        FixedString128Bytes[] _puckedCoinNames = new FixedString128Bytes[puckedCoinNames.Count];
+        for (int i = 0; i < _ghostNames.Length; i++)
+        {
+            _ghostNames[i] = ghostNames[i];
+        }
+        for(int j = 0; j <  _puckedCoinNames.Length; j ++)
+        {
+            _puckedCoinNames[j] = puckedCoinNames[j];
+        }
+         // Invoke an RPC
+         updateCoinsServerRpc(_ghostNames, _puckedCoinNames);
+    }
+    [ServerRpc(RequireOwnership =false)]
+    void updateCoinsServerRpc(FixedString128Bytes[] ghosts, FixedString128Bytes[] pucked)
+    {
+        propogateCoinChanges(ghosts, pucked);
+    }
+
+    void propogateCoinChanges(FixedString128Bytes[] ghosts, FixedString128Bytes[] pucked)
+    {
+        for(int i = 0; i < NetworkManager.Singleton.ConnectedClients.Count; i++)
+        {
+            reflectCoinChangesClientRpc(ghosts, pucked);
+        }
+    }
+    [ClientRpc]
+    void reflectCoinChangesClientRpc(FixedString128Bytes[] ghosts, FixedString128Bytes[] pucked)
+    {
+        List<string> _ghostNames = new List<string>();
+        List<string> _PuckedNames = new List<string>();
+        for (int i = 0; i < ghosts.Length; i++)
+        {
+            _ghostNames.Add(ghosts[i].ToString());
+            _PuckedNames.Add(pucked[i].ToString());
+        }
+        gameManager.DestroyGhostCoin(_ghostNames);
+        gameManager.DestroyPuckedCoins(_PuckedNames);
+    }
 }
 
 

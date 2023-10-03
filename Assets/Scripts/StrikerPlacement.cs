@@ -9,6 +9,8 @@ public class StrikerPlacement : MonoBehaviour
     [SerializeField] GameObject m_StrikerObject;
     [SerializeField] LayerMask m_DetectionMask;
     [SerializeField] bool placeStriker = true;
+    [SerializeField] Vector3 m_center;
+    [SerializeField] float m_MaxDistance;
     Camera mainCamera;
     // Start is called before the first frame update
     void Start()
@@ -40,12 +42,17 @@ public class StrikerPlacement : MonoBehaviour
             // we lock the striker and button here
             GameController.Instance.SetValidState(false);
             RaycastHit2D _hit = Physics2D.Raycast(mainCamera.ScreenToWorldPoint(Input.mousePosition), Vector2.zero, m_DetectionMask);
-            if(_hit.collider != null && Input.GetMouseButtonUp(0))
+            if(_hit.collider != null && Input.GetMouseButtonUp(0) && Vector3.Distance(m_center,_hit.point) < m_MaxDistance)
             {
                 coinToPlace.Value.SetActive(true);
                 coinToPlace.Value.transform.position = _hit.point;
                 coinToPlace.Value = null;
                 GameController.Instance.InvokePlacementComplete();
+            }
+            if (_hit.collider != null && Input.GetMouseButtonUp(0) && Vector3.Distance(m_center, _hit.point) < m_MaxDistance && coinToPlace.Value != null)
+            {
+                coinToPlace.Value.SetActive(true);
+                // add some game juice.
             }
         }
     }
