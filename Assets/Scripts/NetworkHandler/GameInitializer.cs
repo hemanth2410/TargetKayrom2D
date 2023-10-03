@@ -1,4 +1,4 @@
-using ParrelSync;
+//using ParrelSync;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Services.Authentication;
@@ -10,9 +10,9 @@ public class GameInitializer : MonoBehaviour
     private async void Awake()
     {
         var options = new InitializationOptions();
-#if UNITY_EDITOR
-        options.SetProfile(ClonesManager.IsClone() ? ClonesManager.GetArgument() : "Primary");
-#endif
+//#if UNITY_EDITOR
+//        options.SetProfile(ClonesManager.IsClone() ? ClonesManager.GetArgument() : "Primary");
+//#endif
         await UnityServices.InitializeAsync(options);
     }
     // Start is called before the first frame update
