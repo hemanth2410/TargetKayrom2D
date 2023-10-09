@@ -239,32 +239,36 @@ public class GameManager : MonoBehaviour
         {
             var hitPoint = hit2D.point;
             Debug.DrawLine(strikerTransfrom.position, hitPoint);
-            strikerForceDirection = dragStartPos - hitPoint;
+            Vector3 directionPosition = new Vector3(hit.point.x, hit.point.y, striker.transform.position.z); 
+            strikerForceDirection = striker.transform.position - directionPosition;
             float magnitude = Vector2.Distance(hitPoint, dragStartPos);
+            Vector3 lineEndPosition = strikerForceDirection * 3.0f;
+            lineEndPosition = new Vector3(lineEndPosition.x, lineEndPosition.y, striker.transform.position.z);
+            ShotRenderer.SetPosition(0, striker.transform.position);
+            ShotRenderer.SetPosition(1, lineEndPosition);
+            //for (int i = 0; i < carromCoins.Count; i++)
+            //{
+            //    ghostCoins[i].transform.position = carromCoins[i].transform.position;
+            //}
+            ////GameController.Instance.RuleEvaluator.EvaluateRules();
 
-            for (int i = 0; i < carromCoins.Count; i++)
-            {
-                ghostCoins[i].transform.position = carromCoins[i].transform.position;
-            }
-            //GameController.Instance.RuleEvaluator.EvaluateRules();
+            //ghostStriker.GetComponent<CircleCollider2D>().isTrigger = !GameController.Instance.ValidStrikerPlacement;
+            //ghostStriker.transform.position = striker.transform.position;
+            //ghostStriker.GetComponent<Rigidbody2D>().velocity = Vector3.zero;
+            //ghostStriker.GetComponent<Rigidbody2D>().AddForce((strikerForceDirection.normalized) * StrikeForceMultiplier * magnitude, ForceMode2D.Impulse);
+            //ShotRenderer.positionCount = MaxSimulatedFrames;
 
-            ghostStriker.GetComponent<CircleCollider2D>().isTrigger = !GameController.Instance.ValidStrikerPlacement;
-            ghostStriker.transform.position = striker.transform.position;
-            ghostStriker.GetComponent<Rigidbody2D>().velocity = Vector3.zero;
-            ghostStriker.GetComponent<Rigidbody2D>().AddForce((strikerForceDirection.normalized) * StrikeForceMultiplier * magnitude, ForceMode2D.Impulse);
-            ShotRenderer.positionCount = MaxSimulatedFrames;
+            //for (int i = 0; i < MaxSimulatedFrames; i++)
+            //{
+            //    physicsSimulationScene.Simulate(Time.fixedDeltaTime);
+            //    Vector3 _position = ghostStriker.transform.position;
+            //    _position.z = 0;
+            //    ShotRenderer.SetPosition(i, _position);
 
-            for (int i = 0; i < MaxSimulatedFrames; i++)
-            {
-                physicsSimulationScene.Simulate(Time.fixedDeltaTime);
-                Vector3 _position = ghostStriker.transform.position;
-                _position.z = 0;
-                ShotRenderer.SetPosition(i, _position);
-
-            }
-            Vector3 _firstPosition = striker.transform.position;
-            _firstPosition.z = 0;
-            ShotRenderer.SetPosition(0, _firstPosition);
+            //}
+            //Vector3 _firstPosition = striker.transform.position;
+            //_firstPosition.z = 0;
+            //ShotRenderer.SetPosition(0, _firstPosition);
 
             //Strike the striker when we release
             if (Input.GetMouseButtonUp(0))
