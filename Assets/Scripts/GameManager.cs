@@ -239,13 +239,13 @@ public class GameManager : MonoBehaviour
         {
             var hitPoint = hit2D.point;
             Debug.DrawLine(strikerTransfrom.position, hitPoint);
-            Vector3 directionPosition = new Vector3(hit.point.x, hit.point.y, striker.transform.position.z); 
-            strikerForceDirection = striker.transform.position - directionPosition;
+            strikerForceDirection = dragStartPos-hitPoint;
             float magnitude = Vector2.Distance(hitPoint, dragStartPos);
-            Vector3 lineEndPosition = strikerForceDirection * 3.0f;
-            lineEndPosition = new Vector3(lineEndPosition.x, lineEndPosition.y, striker.transform.position.z);
-            ShotRenderer.SetPosition(0, striker.transform.position);
-            ShotRenderer.SetPosition(1, lineEndPosition);
+
+            ShotRenderer.positionCount = 2;
+            ShotRenderer.SetPosition(0, dragStartPos);
+            ShotRenderer.SetPosition(1, new Vector3(dragStartPos.x, dragStartPos.y) + (StrikerForceDirection.normalized *  10));
+
             //for (int i = 0; i < carromCoins.Count; i++)
             //{
             //    ghostCoins[i].transform.position = carromCoins[i].transform.position;
@@ -270,7 +270,7 @@ public class GameManager : MonoBehaviour
             //_firstPosition.z = 0;
             //ShotRenderer.SetPosition(0, _firstPosition);
 
-            //Strike the striker when we release
+            ////Strike the striker when we release
             if (Input.GetMouseButtonUp(0))
             {
                 Physics2D.simulationMode = SimulationMode2D.FixedUpdate;
